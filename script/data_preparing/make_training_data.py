@@ -78,8 +78,9 @@ def main():
                 anno_text = anno_text + anno_str
                 print(anno_str)
 
-            with open(os.path.join(data_dir, 'annotation.list'), 'w') as outf:
+            with open(os.path.join(data_dir, 'annotation_' + str(no) + '.list'), 'w') as outf:
                 outf.write(anno_text)
+
 
 if __name__ == '__main__':
     main()
