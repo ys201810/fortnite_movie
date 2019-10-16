@@ -5,6 +5,7 @@ import torch
 import numpy as np
 from script.model_make.datasets import FiveSecDataset
 from torch.utils.data import DataLoader
+from torch.autograd import Variable
 from script.model_make.models import resnet18_2D
 import torch.optim as optim
 import torch.nn as nn
@@ -23,9 +24,9 @@ def main():
     ngf = 64
     lr = 0.001
     weight_decay = 0.0
-    epoch = 2
-    save_epoch_interval = 1
-    save_model_file = 'trained_weight.pth'
+    epoch = 200
+    save_epoch_interval = 5
+    save_model_file = './saved/trained_weight.pth'
 
     # datasetの作成
     train = FiveSecDataset(annotation_file, 'train', None)
@@ -39,6 +40,7 @@ def main():
 
     # optimizer 定義
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    criterion = nn.BCEWithLogitsLoss().to(device)
 
     # training
     train_costs_list = []
@@ -46,16 +48,22 @@ def main():
     for i in range(epoch + 1):
         model.train()
         train_metrics = []
-        for train_data, train_label in train_dataloader:
+        for j, train_datas in enumerate(train_dataloader):
+            train_data, train_label = train_datas
             train_data = train_data.to(device)
             train_label = train_label.to(device)
-            criterion = nn.BCEWithLogitsLoss()
+            train_data = Variable(train_data)
+            train_label = Variable(train_label)
+            optimizer.zero_grad()
+
             train_outputs = model(train_data)
+            _, pred = train_outputs.topk(k=1, dim=1, largest=True)
+            pred = pred.t()
             train_loss = criterion(train_outputs, train_label)
             train_loss.backward()
             optimizer.step()
             train_metrics.append([train_loss.item()])
-            print('[train]epoch:{} loss:{}'.format(i, train_loss.item()))
+            # print('[train]epoch:{}-iteration:{} loss:{}'.format(i, j, train_loss.item()))
 
         # validation
         model.eval()
@@ -73,11 +81,11 @@ def main():
         valid_metrics_mean = np.mean(valid_metrics, axis=0)
         train_costs_list.append(train_metrics_mean[0])
         valid_costs_list.append(valid_metrics_mean[0])
-        print('[valid]epoch:{}-end loss:{}'.format(i, train_metrics_mean[0]))
+        print('[train]epoch:{}-end loss:{}'.format(i, train_metrics_mean[0]))
         print('[valid]epoch:{}-end loss:{}'.format(i, valid_metrics_mean[0]))
 
         if i % save_epoch_interval == 0:
-            torch.save(model.state_dict(), save_model_file.replace('.pth', str(i) + '_.pth'))
+            torch.save(model.state_dict(), save_model_file.replace('.pth', '+' + str(i) + '.pth'))
 
 
 if __name__ == '__main__':

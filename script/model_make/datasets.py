@@ -18,7 +18,7 @@ class FiveSecDataset(Dataset):
                 vals = line.split(' ')
                 image_paths = vals[0]
                 kind = vals[1]
-                label = vals[2]
+                label = int(vals[2])
                 img_tensor_list = []
                 if kind == target:
                     image_files = glob.glob(image_paths)
@@ -40,6 +40,7 @@ class FiveSecDataset(Dataset):
     def __getitem__(self, index):
         out_data = self.data[index]
         out_label = torch.from_numpy(np.array(self.label[index]))
+        out_label = torch.eye(2)[out_label]
 
         return out_data, out_label
 

@@ -139,7 +139,8 @@ class ResNet2D(nn.Module):
     def forward(self, x):
         x = self.forward_until_avgpool(x)
         x = self.avgpool(x)
-        x = torch.flatten(x, 1)
+        # x = torch.flatten(x, 1)
+        x = x.view(x.size(0), -1)
         x = self.fc(x)
 
         if self.last_sigmoid:
