@@ -1,13 +1,11 @@
 # coding=utf-8
 import os
 import sys
-import cv2
 import glob
 import math
 import copy
-import pickle
 import shutil
-from script.data_preparing.utils import parse_battle_csv, change_from_hms_to_sec
+from script.utils import parse_battle_csv, change_from_hms_to_sec
 root_dir = os.path.join(os.getcwd(), '../../')
 sys.path.append(root_dir)
 

@@ -4,7 +4,7 @@ import sys
 import cv2
 import glob
 import copy
-from script.data_preparing.utils import change_from_hms_to_sec, parse_battle_csv
+from script.utils import change_from_hms_to_sec, parse_battle_csv
 root_dir = os.path.join(os.getcwd(), '../../')
 sys.path.append(root_dir)
 

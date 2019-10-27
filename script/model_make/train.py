@@ -32,8 +32,8 @@ def main():
     train = FiveSecDataset(annotation_file, 'train', None)
     valid = FiveSecDataset(annotation_file, 'val', None)
 
-    train_dataloader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=1)
-    val_dataloader = DataLoader(valid, batch_size=batch_size, shuffle=True, num_workers=1)
+    train_dataloader = DataLoader(train, batch_size=batch_size, shuffle=True, num_workers=1, pin_memory=True)
+    val_dataloader = DataLoader(valid, batch_size=batch_size, shuffle=True, num_workers=1, pin_memory=True)
 
     # modelの作成
     model = resnet18_2D(num_classes, n_images * 3, ngf).to(device)
@@ -85,7 +85,7 @@ def main():
         print('[valid]epoch:{}-end loss:{}'.format(i, valid_metrics_mean[0]))
 
         if i % save_epoch_interval == 0:
-            torch.save(model.state_dict(), save_model_file.replace('.pth', '+' + str(i) + '.pth'))
+            torch.save(model.state_dict(), save_model_file.replace('.pth', '_' + str(i) + '.pth'))
 
 
 if __name__ == '__main__':
