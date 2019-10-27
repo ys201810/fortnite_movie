@@ -20,7 +20,6 @@ def main():
     n_images = 5
     ngf = 64
 
-
     model_file = os.path.join(root_dir, 'script', 'model_make', 'saved', 'trained_weight_100.pth')
     model = resnet18_2D(num_classes, n_images * 3, ngf).to(device)
 
