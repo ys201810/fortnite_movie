@@ -3,14 +3,54 @@ import os
 import sys
 import torch
 import numpy as np
+import pandas as pd
+import matplotlib as mpl
+mpl.use('Agg')
+import matplotlib.pyplot as plt
 from script.model_make.datasets import FiveSecDataset
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from script.model_make.models import resnet18_2D
 import torch.optim as optim
 import torch.nn as nn
+from statistics import mean
 root_dir = os.path.join(os.getcwd(), '../../')
 sys.path.append(root_dir)
+
+
+def draw_history(acc_log_file, loss_log_file, model_save_dir, model_type):
+    # make training history on image file.
+    acc_df = pd.read_csv(acc_log_file)
+    val_x = acc_df['epoch'].values
+    val_y_train_acc = acc_df['train_acc'].values
+    val_y_val_acc = acc_df['val_acc'].values
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+
+    ax.plot(val_x, val_y_train_acc, linestyle='-', color='blue', label='train')
+    ax.plot(val_x, val_y_val_acc, linestyle='-', color='orange', label='val')
+    ax.legend(loc='best')
+    ax.set_xlabel("epoch")
+    ax.set_ylabel("accuracy")
+    plt.title("accuracy by each epoch")
+    plt.savefig(os.path.join(model_save_dir, model_type + '_acc_history.png'))
+
+    acc_df = pd.read_csv(loss_log_file)
+    val_x = acc_df['epoch'].values
+    val_y_train_loss = acc_df['train_loss'].values
+    val_y_val_loss = acc_df['val_loss'].values
+
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+
+    ax.plot(val_x, val_y_train_loss, linestyle='-', color='blue', label='train')
+    ax.plot(val_x, val_y_val_loss, linestyle='-', color='orange', label='val')  # linestyle = '--'
+    ax.legend(loc='best')
+    ax.set_xlabel("epoch")
+    ax.set_ylabel("loss")
+    plt.title("loss by each epoch")
+    plt.savefig(os.path.join(model_save_dir, model_type + '_loss_history.png'))
 
 
 def main():
@@ -27,6 +67,7 @@ def main():
     epoch = 200
     save_epoch_interval = 5
     save_model_file = './saved/trained_weight.pth'
+    acc_log_file, loss_log_file = './saved/acc.log', './saved/loss.log'
 
     # datasetの作成
     train = FiveSecDataset(annotation_file, 'train', None)
@@ -43,8 +84,8 @@ def main():
     criterion = nn.BCEWithLogitsLoss().to(device)
 
     # training
-    train_costs_list = []
-    valid_costs_list = []
+    train_loss_list, train_acc_list = [], []
+    valid_loss_list, valid_acc_list = [], []
     for i in range(epoch + 1):
         model.train()
         train_metrics = []
@@ -59,6 +100,10 @@ def main():
             train_outputs = model(train_data)
             _, pred = train_outputs.topk(k=1, dim=1, largest=True)
             pred = pred.t()
+            train_correct = pred.eq(train_label.argmax(dim=1))
+            n_train_correct = train_correct.float().sum().item()
+            train_acc = n_train_correct / batch_size
+            train_acc_list.append(train_acc)
             train_loss = criterion(train_outputs, train_label)
             train_loss.backward()
             optimizer.step()
@@ -74,15 +119,35 @@ def main():
                 valid_label = valid_label.to(device)
                 criterion = nn.BCEWithLogitsLoss()
                 valid_outputs = model(valid_data)
+
+                _, pred = valid_outputs.topk(k=1, dim=1, largest=True)
+                pred = pred.t()
+                valid_correct = pred.eq(valid_label.argmax(dim=1))
+                n_valid_correct = valid_correct.float().sum().item()
+                valid_acc = n_valid_correct / batch_size
+                valid_acc_list.append(valid_acc)
+
                 valid_loss = criterion(valid_outputs, valid_label)
                 valid_metrics.append([valid_loss.item()])
 
         train_metrics_mean = np.mean(train_metrics, axis=0)
         valid_metrics_mean = np.mean(valid_metrics, axis=0)
-        train_costs_list.append(train_metrics_mean[0])
-        valid_costs_list.append(valid_metrics_mean[0])
-        print('[train]epoch:{}-end loss:{}'.format(i, train_metrics_mean[0]))
-        print('[valid]epoch:{}-end loss:{}'.format(i, valid_metrics_mean[0]))
+        train_loss_list.append(train_metrics_mean[0])
+        valid_loss_list.append(valid_metrics_mean[0])
+        print('[train]epoch:{}-end loss:{} acc:{}'.format(i, train_metrics_mean[0], mean(train_acc_list)))
+        print('[valid]epoch:{}-end loss:{} acc:{}'.format(i, valid_metrics_mean[0], mean(valid_acc_list)))
+
+        with open(acc_log_file, 'a') as acc_logf:
+            if i == 0:
+                acc_logf.write('epoch,train_acc,val_acc\n')
+            text = ','.join([str(i + 1), str(mean(train_acc_list)), str(mean(valid_acc_list))]) + '\n'
+            acc_logf.write(text)
+
+        with open(loss_log_file, 'a') as loss_logf:
+            if i == 0:
+                loss_logf.write('epoch,train_loss,val_loss\n')
+            text = ','.join([str(i + 1), str(mean(train_loss_list)), str(mean(valid_loss_list))]) + '\n'
+            loss_logf.write(text)
 
         if i % save_epoch_interval == 0:
             torch.save(model.state_dict(), save_model_file.replace('.pth', '_' + str(i) + '.pth'))
