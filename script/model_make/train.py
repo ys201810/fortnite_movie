@@ -2,6 +2,7 @@
 import os
 import sys
 import torch
+import time
 import numpy as np
 import pandas as pd
 import matplotlib as mpl
@@ -58,7 +59,7 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     data_dir = os.path.join('/usr', 'local', 'wk', 'data', 'fortnite')
     annotation_file = os.path.join(data_dir, 'annotation.list')
-    batch_size = 4
+    batch_size = 64
     num_classes = 2
     n_images = 5
     ngf = 64
@@ -68,6 +69,7 @@ def main():
     save_epoch_interval = 5
     save_model_file = './saved/trained_weight.pth'
     acc_log_file, loss_log_file = './saved/acc.log', './saved/loss.log'
+    weights = torch.FloatTensor([0.5, 1]).to(device)  # [not in battle, in battle]
 
     # datasetの作成
     train = FiveSecDataset(annotation_file, 'train', None)
@@ -81,7 +83,7 @@ def main():
 
     # optimizer 定義
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
-    criterion = nn.BCEWithLogitsLoss().to(device)
+    criterion = nn.BCEWithLogitsLoss(weight=weights).to(device)
 
     # training
     train_loss_list, train_acc_list = [], []
@@ -108,7 +110,11 @@ def main():
             train_loss.backward()
             optimizer.step()
             train_metrics.append([train_loss.item()])
-            # print('[train]epoch:{}-iteration:{} loss:{}'.format(i, j, train_loss.item()))
+            if j != 0:
+                elapsed_time = time.time() - iteration_start_time
+                print('[train]epoch:{}-iteration:{} loss:{} acc:{} elapsed_time:{}[s]'.format(
+                    i, j, train_loss.item(), train_acc, elapsed_time))
+            iteration_start_time = time.time()
 
         # validation
         model.eval()
