@@ -19,18 +19,10 @@ class FiveSecDataset(Dataset):
                 image_paths = vals[0]
                 kind = vals[1]
                 label = int(vals[2])
-                img_tensor_list = []
                 if kind == target:
                     image_files = glob.glob(image_paths)
                     image_files = sorted(image_files)
-                    for image_file in image_files:
-                        img = cv2.imread(image_file)
-                        img = np.transpose(img, (2, 0, 1)) / 255.  # BGRからRGBに
-                        tensor_img = torch.from_numpy(img).float()
-                        img_tensor_list.append(tensor_img)
-
-                    imgs = torch.cat(img_tensor_list, 0)
-                    self.data.append(imgs)
+                    self.data.append(image_files)
                     self.label.append(label)
             self.data_num = len(self.data)
 
@@ -38,7 +30,17 @@ class FiveSecDataset(Dataset):
         return self.data_num
 
     def __getitem__(self, index):
-        out_data = self.data[index]
+        image_files = self.data[index]
+        img_tensor_list = []
+
+        for image_file in image_files:
+            img = cv2.imread(image_file)
+            img = np.transpose(img, (2, 0, 1)) / 255.  # BGRからRGBに
+            tensor_img = torch.from_numpy(img).float()
+            img_tensor_list.append(tensor_img)
+
+        out_data = torch.cat(img_tensor_list, 0)
+
         out_label = torch.from_numpy(np.array(self.label[index]))
         out_label = torch.eye(2)[out_label]
 
